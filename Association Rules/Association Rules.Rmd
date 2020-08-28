@@ -1,0 +1,144 @@
+---
+title: 'Individual Assignment 4: Association Rules by Shimony Agrawal'
+output:
+  pdf_document: default
+  html_notebook: default
+  always_allow_html: yes
+---
+
+Download the necessary packages for Market Basket Analysis and Association Rules. 
+
+```{r}
+library(DBI)
+library(odbc)
+library(tidyverse)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+library(arules)
+library(arulesViz)
+```
+
+Part 1: Load the data set.
+
+```{r}
+data(Groceries)
+str(Groceries)
+dim(Groceries)
+```
+
+Part 2: Data Visualisation 
+- Generate an item frequency barplot for the Top 20 grocery item.
+- Generate an item frequency barplot for the grocery items with support rate greater than 5%.
+- Generate an item frequency barplot for the grocery items with support rate greater than 3%.
+
+```{r}
+itemFrequencyPlot(Groceries,topN=20,type="absolute")
+
+support = 0.05
+itemsets <- apriori(Groceries, 
+                    parameter = list(target = "frequent itemsets", supp = support, conf = 0.60, minlen = 2),
+                    control = list (verbose = FALSE))
+
+par(mar = c(5,14,2,2)+.1)
+order_sets <- DATAFRAME(sort(itemsets, by = "support", decreasing = F))
+barplot(order_sets$support, names.arg = order_sets$items, 
+        horiz = T, las = 2, cex.names = .8, main = "Frequent Itemsets")
+mtext(paste("support:", support), padj = .8)
+
+support = 0.03
+itemsets <- apriori(Groceries, 
+                    parameter = list(target = "frequent itemsets", supp = support, conf = 0.60, minlen = 2),
+                    control = list (verbose = FALSE))
+
+par(mar = c(5,14,2,2)+.1)
+order_sets <- DATAFRAME(sort(itemsets, by = "support", decreasing = F))
+barplot(order_sets$support, names.arg = order_sets$items, 
+        horiz = T, las = 2, cex.names = .8, main = "Frequent Itemsets")
+mtext(paste("support:", support), padj = .8)
+
+```
+
+Part 2: Use the apriori algorithm to identify the top 20 rules. 
+
+```{r}
+# Get the rules
+rules <- apriori(Groceries, parameter = list(supp = 0.001, conf = 0.8))
+
+# Show the top 20  rules
+arules::inspect(rules[1:20])
+summary(rules)
+```
+
+
+Part 4: Sort out the rules by confidence.
+
+```{r}
+rules<-sort(rules, by="confidence", decreasing=TRUE)
+rules <- apriori(Groceries, parameter = list(supp = 0.001, conf = 0.8, maxlen=3))
+
+summary(rules)
+arules::inspect(rules[1:20])
+
+```
+
+Part 5: Targeting items from the Top 20 items based on frequency. 
+
+```{r}
+# RHS rules
+rules<-apriori(data=Groceries, parameter=list(supp=0.001,conf = 0.08), 
+               appearance = list(default="lhs",rhs="soda"),
+               control = list(verbose=F))
+rules<-sort(rules, decreasing=TRUE,by="confidence")
+arules::inspect(rules[1:10])
+toprules_soda <- (rules[1:10])
+plot(toprules_soda, method = 'graph', engine = 'htmlwidget')
+
+
+
+rules<-apriori(data=Groceries, parameter=list(supp=0.001,conf = 0.08), 
+               appearance = list(default="lhs",rhs="whole milk"),
+               control = list(verbose=F))
+rules<-sort(rules, decreasing=TRUE,by="confidence")
+arules::inspect(rules[1:10])
+toprules_milk <- (rules[1:10])
+plot(toprules_milk, method = 'graph', engine = 'htmlwidget')
+```
+For the rhs {Soda}: It can be seen that when rolls/buns, bottled water and chocolate are purchased there is a 65% chance of soda also being bought with a support of 0.13% indicating the highest frequency in the rules. Also, with the purchase of coffee and misc. beverages there is a 77% chance that soda will also be purchased. 
+
+For the rhs {Whole Milk}: Interestingly, for all the items bought on lhs, there is a 100% chance that the item on rhs will be purchased. For instnace, whenever root vegetables, whipped/sour cream and flour are purhcased there is a 100% likelihood that whole will also be bought. 
+
+All the rules have a lift greater than 1, showing a positive correlation between the products in the itemset, thereby indicating that the two products are more likely to be bought together. Those rules that have the higher confidence, support and lift are the strongest. 
+
+```{r}
+# LHS Rules
+rules<-apriori(data=Groceries, parameter=list(supp=0.001,conf = 0.15,minlen=2), 
+               appearance = list(default="rhs",lhs="root vegetables"),
+               control = list(verbose=F))
+rules<-sort(rules, decreasing=TRUE,by="confidence")
+arules::inspect(rules[1:5])
+toprules_vegetables <- (rules[1:5])
+plot(toprules_vegetables, method = 'graph', engine = 'htmlwidget')
+
+
+rules<-apriori(data=Groceries, parameter=list(supp=0.001,conf = 0.15,minlen=2), 
+               appearance = list(default="rhs",lhs="tropical fruit"),
+               control = list(verbose=F))
+
+rules<-sort(rules, decreasing=TRUE,by="confidence")
+arules::inspect(rules[1:5])
+toprules_fruit <- (rules[1:5])
+plot(toprules_fruit, method = 'graph', engine = 'htmlwidget')
+
+```
+For lhr {root vegetables}: The highest association for root vegetables is whole milk with a 45% chance of whole milk being purchased with root vegetables. Moreover, this association has been purchased 481 times by consumers.
+
+For rhs {tropical fruit}: Here too, whole milk has the strongest association with a 40% likelihood of tropical fruit and whole being purchased together.
+
+All the rules have a lift greater than 1, showing a positive correlation between the products in the itemset, thereby indicating that the two products are more likely to be bought together. Those rules that have the higher confidence, support and lift are the strongest. 
+
+
+```{r}
+plot(rules, method = 'graph', engine = 'htmlwidget')
+plot(rules, jitter = 0)
+```

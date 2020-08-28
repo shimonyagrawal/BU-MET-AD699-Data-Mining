@@ -1,0 +1,352 @@
+---
+title: 'Individual Assignment 3: Classification using K-Nearest Neighbours and Naive Bayes by Shimony Agrawal'
+output: pdf_document
+---
+
+Download the necessary packages for classification using KNN and Naive Bayes.
+
+```{r}
+# install.packages("DBI")
+# install.packages("odbc")
+# install.packages("dplyr")
+# install.packages("tidyverse")
+# install.packages("lubridate")
+# install.packages("ggplot2")
+# install.packages("ISLR")
+# install.packages("caret")
+# install.packages("forecast")
+# install.packages("corrplot")
+# install.packages ("visualize")
+# install.packages("FNN")
+# install.packages("e1071")
+
+library(DBI)
+library(odbc)
+library(tidyverse)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+library(ISLR)
+library(caret)
+library(forecast)
+library(corrplot)
+library(visualize)
+library(FNN)
+library(e1071)
+```
+
+    Part 1: K-Nearest Neighbours
+
+Task 1: Read the file. 
+
+```{r}
+employees = read.csv("/Users/shimonyagrawal/Desktop/Grad /Summer 2/AD699_Data Mining/RStudio/Assignment 3/employees.csv")
+employees <- employees[,c(2, 1, 3:12)]
+```
+
+Data type of variables 
+
+```{r}
+str(employees)
+
+employees$Attrition <- as.factor(employees$Attrition)
+
+str(employees)
+```
+
+Task 3: Are there any NAs in this dataset? Show the code that you used to find this out. If there are any NA values in any particular column, replace them with the median value for that column.
+
+```{r}
+anyNA(employees$Attrition) # No NA values in the dataset. 
+```
+Comments: 
+The dataset doesn't have NA values. 
+
+Task 4: Filter the original employees dataframe to create two new temporary dataframes. One of these dataframes should contain the records for employees who left the company, and the other dataframe should contain the records for employees who did not leave the company.Call the summary() function on each of these two dataframes that you just made. 
+
+Q: Based on the summary identify differences that you noticed between the summary stats for the employees who left and the stats for the employees who did not.For each of the major differences that you found, include a sentence or two of speculation about what why/how these factors might impact employees’ decisions to stay or leave. 
+
+```{r}
+employees_left <- employees %>%
+  filter (Attrition == 'Yes')
+
+employees_stayed <- employees %>%
+  filter (Attrition == 'No')
+
+summary(employees_left)
+summary(employees_stayed)
+```
+Comments: 
+Out of the data of 1470 employees, 1233 stayed and 237 left. Based on the summaries, I found that age, distance from home, number of companies worked, training and promotion aren't the key indicators of employees leaving or staying in the company. I was a bit surprised to find similar statistics for promotion in the data given its importance in a professional career. On the other hand, monthly income played an important role. Employees who left the company earned on an average $2000 less than the employees who stayed. Clearly, if employees feel they aren't paid what they deserve; they will tend to have lower motivation to work. Moreover, employees who stayed have on an average worked more i.e 11 years as compared to those left - 8 years. Here, the experience factor comes into play where the more experienced employees tend to earn more and hence have a higher monthly income. Another key observation was that employees who left stayed in their current role for an average of 3 years as compared to those who stayed. A possible interpretation could be their dissatisfaction with their current roles and found better opportunities elsewhere. Lastly, employees who left were assigned to their current manager for an average of 3 years whereas those who stayed were assigned for 4 years. Workplace environment plays a great role in a person's decision to work for the company. These employees were certainly unhappy with their current managers and wanted to leave. Having a motivated and dedicated person in a leadership role highly influences the employee's decision to stay or leave. 
+
+Concluding, firstly, monthly income and years with manager are key influencers in the decision to work at the company or not as well as professional experience in the industry. Job satisfaction is also a key decison-maker for employees today. Companies working towards making a more flexible environment for their employees and making them feel valued are definitely succeeding. However, given the data of 1,470 employees only 16% employees left - which is still a small number and can be improved too.  
+
+Task 5: Using your assigned seed value (from Assignment 2), partition your entire dataset into training (60%) and validation (40%) sets.
+
+```{r}
+nrow(employees) 
+set.seed(10) # Assigned Seed Value 
+employees_sample <- sample_n(employees, 1470) 
+Train_KNN <- slice(employees_sample, 1:882)
+Valid_KNN <- slice(employees_sample, 883:1470) 
+```
+
+Task 6a: Emma 
+
+Task 6b:Use the runif() function to give your person values for each of the numeric predictor attributes. Use the min and max values from your training set as the lower and upper boundaries for runif().
+
+```{r}
+Emma_runif <- data.frame(Age = runif(1, min(Train_KNN$Age), max(Train_KNN$Age)), 
+                   DistanceFromHome = runif(1, min(Train_KNN$DistanceFromHome), max(Train_KNN$DistanceFromHome)), 
+                   MonthlyIncome = runif(1, min(Train_KNN$MonthlyIncome), max(Train_KNN$MonthlyIncome)),
+                   NumCompaniesWorked = runif(1, min(Train_KNN$NumCompaniesWorked), max(Train_KNN$NumCompaniesWorked)),
+                   PercentSalaryHike = runif(1, min(Train_KNN$PercentSalaryHike), max(Train_KNN$PercentSalaryHike)),
+                   TotalWorkingYears = runif(1, min(Train_KNN$TotalWorkingYears), max(Train_KNN$TotalWorkingYears)),
+                   TrainingTimesLastYear = runif(1, min(Train_KNN$TrainingTimesLastYear), max(Train_KNN$TrainingTimesLastYear)),
+                   YearsAtCompany = runif(1, min(Train_KNN$YearsAtCompany), max(Train_KNN$YearsAtCompany)),
+                   YearsInCurrentRole = runif(1, min(Train_KNN$YearsInCurrentRole), max(Train_KNN$YearsInCurrentRole)),
+                   YearsSinceLastPromotion = runif(1, min(Train_KNN$YearsSinceLastPromotion), max(Train_KNN$YearsSinceLastPromotion)),
+                   YearsWithCurrManager = runif(1, min(Train_KNN$YearsWithCurrManager), max(Train_KNN$YearsWithCurrManager)))
+
+Emma <- data.frame(Age = 50.94084, 
+                   DistanceFromHome = 5.155811,
+                   MonthlyIncome = 5233.086,
+                   NumCompaniesWorked = 3.535845,
+                   PercentSalaryHike = 24.89131,
+                   TotalWorkingYears = 26.91134,
+                   TrainingTimesLastYear = 3.311238,
+                   YearsAtCompany = 38.72965,
+                   YearsInCurrentRole = 7.547142,
+                   YearsSinceLastPromotion = 3.1872,
+                   YearsWithCurrManager = 12.10349)
+```
+
+Task 7: Normalize your data using the preProcess() function from the caret package
+
+```{r}
+# Normalizing the dataset 
+
+Train.norm.df <- Train_KNN
+Valid.norm.df <- Valid_KNN
+employees.norm.df <- employees
+
+
+norm.values <- preProcess(Train_KNN[, 2:12], method=c("center", "scale"))
+
+Train.norm.df[, 2:12] <- predict(norm.values, Train_KNN[, 2:12])
+Valid.norm.df[, 2:12] <- predict(norm.values, Valid_KNN[, 2:12])
+employees.norm.df[, 2:12] <- predict(norm.values, employees[, 2:12])
+
+new.norm.df <- predict(norm.values, Emma)
+```
+
+Task 8: Using the knn() function from the FNN package, and using a k-value of 7, generate a predicted classification for your employee.
+
+Q: What outcome category was he or she predicted to belong to? Also, who were your person’s 7 nearest neighbors? How many of them left the company, and how many stayed?
+
+```{r}
+KNN <- knn(train = Train.norm.df[, 2:12], test = new.norm.df, 
+          cl = Train.norm.df[, 1], k = 7)
+
+KNN
+
+neighbours <- Train_KNN[c(541, 429, 30, 665, 292, 180),]
+neighbours
+```
+Comments: 
+Emma is predicted to stay at the company. All of Emma's 7 nearest neighbours have stayed in the company. They are between 43-55 years of age with 20+ working years in the industry (which seems they are really qualified and have experience). All of them are working with the company for 15+ years with 5+ years in their current role which indicates high job satisfaction. 
+
+
+Task 9:Use your validation set to help you determine an optimal k-value
+
+```{r}
+accuracy.df <- data.frame(k = seq(1, 20, 1), accuracy = rep(0, 20))
+
+for(i in 1:20) {
+  knn.pred <- knn(Train.norm.df[, 2:12], Valid.norm.df[, 2:12], 
+                  cl = Train.norm.df[, 1], k = i)
+  accuracy.df[i, 2] <- confusionMatrix(knn.pred, Valid.norm.df[, 1])$overall[1] 
+}
+
+accuracy.df
+```
+
+Task 10: Using either the base graphics package or ggplot, make a scatterplot with the various k values that you used on your x-axis, and the accuracy metrics on the y-axis.
+
+```{r}
+ggplot(accuracy.df, aes(x = k , y = accuracy)) + geom_point()
+```
+
+Task 11: Re-run your knn() function with the optimal k-value that you found previously
+
+Q: What result did you obtain? Was it different from the result you saw when you first ran the k-nn function? Also, what were the outcome classes for each of your person’s k-nearest neighbors?
+
+```{r}
+KNN <- knn(train = Train.norm.df[, 2:12], test = new.norm.df, 
+           cl = Train.norm.df[, 1], k = 9)
+
+KNN
+
+neighbours_new <- Train_KNN[c(541, 429, 30, 665, 292, 180, 705, 152),]
+neighbours_new
+```
+Comments: 
+Emma is predicted to stay at the company. All of Emma's 9 neihbours are staying at the company. They are between 43-55 years of age with 20+ working years in the industry (which seems they are really qualified and have experience). All of them are working with the company for 15+ years with 5+ years in their current role which indicates high job satisfaction. 
+
+
+    Part 2: Naive Bayes 
+
+Task 1: Read the file. 
+
+```{r}
+emp_category <- read.csv("/Users/shimonyagrawal/Desktop/Grad /Summer 2/AD699_Data Mining/RStudio/Assignment 3/employee-categories.csv")
+```
+
+Task 2: Run the str() function to check the data type for the variables in this dataframe.For any variables that are not currently factors, convert them into factors.
+
+```{r}
+str(emp_category)
+
+emp_category <- emp_category %>%
+  mutate_if(is.character, as.factor)
+
+str(emp_category)
+```
+
+Task 3: Choose any three predictor variables from the dataset. For the three that you chose, make a barplot for each one. Each barplot should show one of your chosen categories on the x-axis, with Attrition as the fill variable. You should build proportional barplots (you can achieve this by adding position=”fill” inside your geom layer). You should generate three separate barplots for this step.
+
+Q: Are there any generalizations that you can make about these variables’ relationship with attrition? Do some variables look like they’ll have more predictive power than others?
+
+```{r}
+# Department
+
+ggplot(emp_category, aes(x = Department, fill = Attrition)) + 
+  geom_bar(position = 'fill') + 
+  ggtitle("Impact of Department on Attrition") + 
+  xlab('Department') + 
+  ylab('Attrition') 
+
+# Marital Status 
+
+ggplot(emp_category, aes(x = MaritalStatus, fill = Attrition)) + 
+  geom_bar(position = 'fill') + 
+  ggtitle("Impact of Marital Status on Attrition") + 
+  xlab('Marital Status') + 
+  ylab('Attrition') 
+
+# WorkLifeBalance
+
+ggplot(emp_category, aes(x = WorkLifeBalance, fill = Attrition)) + 
+  geom_bar(position = 'fill') + 
+  ggtitle("Impact of Work Life Balance on Attrition") + 
+  xlab('Work Life Balance') + 
+  ylab('Attrition') 
+```
+Comments: 
+The 3 variables I chose are: Department, Marital Status and WorkLife Balance. I chose the latter two because personally, I feel that your relationships have a significant impact on your professional choices and also, maintaining a balance leads to a happier life. As they say "All work no play makes Jack a dull boy". 
+Graph 1: Impact of Department on Attrition: It can seen that employees in sales and HR have a higher chance of leaving as compared to R&D. This can be due to higher superiority given to R&D in the workplace as compared to other career choices. 
+Graph 2: Impact of Marital Status on Attrition: It can be seen that a higher number of employees who are single have left the company as compared to married / divorced ones. I feel this can be due to the financial stability and responsibility one needs in a marriage. Also, expenses tend to increase post marriage from getting a house, car to family vacations.Single employees on the other hand tend to be more experimental in their career choices before they chose to settle down.
+Graph 3: Impact of Work Life Balance on Attrition: Employees with bad worklife balance tend to have lef the company as compared to those with best/better/good worklife balance. Nowadays, employees value their personal relationships and lives as much as their professional career. Striking a balance between the two largely depends on the work environment and how much company treats their employees. Maintaining a balance between work and home has proven to have a positive effect on mental health too. 
+
+Task 4: Using your seed value (the same one from Assignment #2) , partition your data into training (60%) and validation (40%) sets.
+
+```{r}
+nrow(emp_category) *.60
+emp_category_sample <- sample_n(emp_category, 1470)
+Train_NB <- slice(emp_category_sample, 1:882)
+Valid_NB <- slice (emp_category_sample, 883:1470)
+```
+
+Task 5: Build a naive bayes model, with the response variable Attrition. Use all of the other variables in your training set as inputs.
+
+```{r}
+empcat_NB <- naiveBayes(Attrition ~ ., data = Train_NB)
+empcat_NB
+```
+
+Task 6: Show a confusion matrix that compares the performance of your model against the training data, and another that shows its performance against the validation data. 
+
+Q: How did your training set’s performance compare with your validation set’s performance?
+
+```{r}
+# Training data 
+pred.class1 <- predict(empcat_NB, newdata = Train_NB) 
+confusionMatrix(pred.class1, Train_NB$Attrition)
+
+# Validation data
+pred.class2 <- predict(empcat_NB, newdata = Valid_NB) 
+confusionMatrix(pred.class2, Valid_NB$Attrition)
+```
+Comments: 
+For the training set, the accuracy is 84% with true positives to be 98% and true negatives 10%. For the validation set, the accuracy is 84% with true positives to be 99% and true negatives 10%. On the basis of accuracy, both sets have similar performance. The training set has 749 true positives and 133 true negatives whereas the validation set has 494 true positives and 94 true negatives. Here, the training set performances better as it has a higher number correct responses. 
+
+Task 7: If you had used the naive rule as an approach to classification, how would you have classified all the records in your training set? 
+
+Comments: 
+Naive rule is a baseline to evaluate the performance of complicated classifiers. Naive rule relies solely on the outcome information and excludes predictor variables. Here, the naive rule will assign all records to majority whereas naive bayes will find the records with the same predictor, determine which class they belong to and then assign the class to the most relevant record. 
+
+Task 8a: Emily
+
+Task 8b: Create a new dataframe for your person that includes his/her category values.
+
+```{r}
+Emily <- data.frame(BusinessTravel = 'Travel_Frequently' , 
+                   Department = 'Research & Development', 
+                   Education = 'Master', 
+                   EducationField = 'Technical Degree' , 
+                   Gender = 'Female' ,
+                   JobSatisfaction = 'High', 
+                   MaritalStatus = 'Single' , 
+                   PerformanceRating = 'Good ', 
+                   WorkLifeBalance = 'Good')
+```
+
+Task 8c: Use the predict() function in R to predict whether your person will leave the company. 
+
+Q: What outcome did your model predict?
+
+```{r}
+pred <- predict (empcat_NB, Emily)
+pred
+```
+Comment: 
+The model predicted that Emily is likely to stay at the company. 
+
+Task 8d: Use the predict() function in R in a slightly different way to determine the probability that your person will leave the company. 
+
+Q: What probability did it assign to your person?
+
+```{r}
+pred.prob <- predict(empcat_NB, newdata = Emily, type = "raw") ## predict class membership
+pred.class <- predict(empcat_NB, newdata = Emily)
+
+pred.prob
+pred.class
+```
+Comments:
+The model predicted that there is 59% chance Emily will stay in the company and a 48% chance that Emily will leave. 
+
+Task 8e: Generate a leave_score (Attrition will be Yes) and a stay_score (Attrition will be No).
+Fictional Instance: What is the leave_score and stay_score for a male employee with a marketing degree who travels frequently, works in sales and has a very high job statisfaction? 
+A-priori Probability-  No: 0.8367347 Yes: 0.1632653 
+Gender - No: 0.5921409  Yes: 0.6388889
+Business Travel- No: 0.16260163 Yes: 0.27777778 
+Marketing- No: 0.10298103 Yes: 0.14583333
+Sales- No: 0.30352304 Yes: 0.34027778 
+JobSatisfaction- No: 0.3238482 Yes: 0.1805556 
+
+
+Q: Use your knowledge of the naive Bayes calculation process to demonstrate how the naive Bayes algorithm generated the probability prediction that you saw in a previous step.
+
+```{r}
+
+stay_score <- 0.8367347 * 0.5921409 * 0.16260163 * 0.10298103 * 0.30352304 * 0.3238482
+leave_score <- 0.1632653 * 0.6388889 * 0.27777778 * 0.14583333 * 0.34027778 * 0.1805556 
+
+stay_score / (stay_score + leave_score) 
+# 0.758 ~ 76% probability that the employee is likely stay 
+leave_score / (stay_score + leave_score) 
+# 0.241 ~ 24% probability that the employee is likely to leave 
+```
+Comments: 
+Based on the results from the emp_NB, I formed a fictional person to demonstrate how the probability prediction works. The model gave probabilities of the employee staying and leaving based on which I generated a stay_score and leave_score. 
